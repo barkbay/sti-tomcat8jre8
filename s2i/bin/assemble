@@ -1,0 +1,80 @@
+#!/bin/bash
+
+PID_FILE=/usr/local/tomcat/pid
+
+# Check if the server http port is up
+function ishttpup() {
+  count=0
+  while [ ${count} -lt 64 ]
+  do
+    if ! curl --head --silent --fail --location --max-time 2 "0.0.0.0:8080" > /dev/null; then
+      echo "Found 0.0.0.0:8080 listening port"
+      return 0
+    fi
+
+    # if the process failed to start, error out immediately
+    # rather than waiting for the timeout on the port being available.
+    pid=$(cat $PID_FILE);
+    if ! ps | grep -v grep | grep $pid > /dev/null; then
+      return 2
+    fi
+
+    let count=${count}+1
+  done
+
+  return 1
+}
+
+# Source code provided to S2I is at ${HOME}
+LOCAL_SOURCE_DIR=${HOME}
+mkdir -p $LOCAL_SOURCE_DIR
+
+# Resulting WAR files will be deployed to /wildfly/standalone/deployments
+DEPLOY_DIR=/usr/local/tomcat/webapps
+
+# Copy the source for compilation
+cp -Rf /opt/s2i/destination/src/. $LOCAL_SOURCE_DIR
+chgrp -R 0 $LOCAL_SOURCE_DIR
+chmod -R g+rw $LOCAL_SOURCE_DIR
+
+# If a pom.xml is present, this is a normal build scenario
+# so run maven.
+if [ -f "$LOCAL_SOURCE_DIR/pom.xml" ]; then
+  # restore any maven dependencies which will be present if this is an
+  # incremental build
+  #restore_saved_artifacts
+
+  pushd $LOCAL_SOURCE_DIR &> /dev/null
+  JAVA_HOME=/etc/alternatives/java_sdk_1.8.0
+
+  if [ -z "$MAVEN_ARGS" ]; then
+    export MAVEN_ARGS="package -Popenshift -DskipTests"
+  fi
+  if [ -z "$MAVEN_ARGS_APPEND" ]; then
+    export MAVEN_ARGS="$MAVEN_ARGS $MAVEN_ARGS_APPEND"
+  fi
+  echo "Found pom.xml... attempting to build with 'mvn ${MAVEN_ARGS}'"
+
+  mvn --version
+  mvn $MAVEN_ARGS
+
+  ERR=$?
+  if [ $ERR -ne 0 ]; then
+    echo "Aborting due to error code $ERR from mvn package"
+    exit $ERR
+  fi
+
+  echo "Copying built war files into $DEPLOY_DIR for later deployment..."
+  popd &> /dev/null
+else
+  echo "Not a Maven project..."
+  exit 1
+fi
+
+if [ -d $LOCAL_SOURCE_DIR/target ]; then
+  cp $LOCAL_SOURCE_DIR/target/*.war $DEPLOY_DIR >& /dev/null
+  chgrp -R 0 $DEPLOY_DIR
+  chmod -R g+rw $DEPLOY_DIR
+fi
+
+echo "...done"
