@@ -52,7 +52,12 @@ RUN set -x \
 	&& gpg --verify tomcat.tar.gz.asc \
 	&& tar -xvf tomcat.tar.gz --strip-components=1 \
 	&& rm bin/*.bat \
-	&& rm tomcat.tar.gz*
+	&& rm tomcat.tar.gz* \
+        && rm -rf /usr/local/tomcat/webapps/examples \
+        && rm -rf /usr/local/tomcat/webapps/docs \
+        && rm -rf /usr/local/tomcat/webapps/manager \
+        && rm -rf /usr/local/tomcat/webapps/host-manager \
+        && rm -rf /usr/local/tomcat/webapps/ROOT
 
 ENV CATALINA_PID /usr/local/tomcat/pid
 
