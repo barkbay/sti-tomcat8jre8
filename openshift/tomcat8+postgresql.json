@@ -2,13 +2,13 @@
 apiVersion: v1
 kind: Template
 labels: 
-  template: "tomcat8jre8-build"
+  template: "tomcat8-jre8-volume"
 metadata: 
   annotations: 
     description: "Tomcat 8 with Java 8, you can add a link to a PostgreSQL pod. Pods share a volume"
-    iconClass: icon-java
+    iconClass: icon-tomcat
     tags: "java,git,postgresql"
-  name: "tomcat-build"
+  name: "tomcat8-jre8-volume"
 objects: 
   - 
     apiVersion: v1
@@ -160,7 +160,7 @@ parameters:
   -
     description: "Name of the project"
     name: PROJECT
-    value: "tomcat8project" 
+    value: "mytomcat8project" 
   -
     description: "Project environment"
     name: ENV
